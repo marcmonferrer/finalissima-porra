@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ca">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#091a33">
+  <meta name="description" content="Porra interactiva de la final España–Argentina">
+  <title>Finalíssima · España vs Argentina</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__eyebrow">FINALÍSSIMA</div>
+    <h1>ESPAÑA 🇪🇸 <span>vs</span> ARGENTINA 🇦🇷</h1>
+    <p>Això passa molt poques vegades a la vida! Per fer la FINALÍSSIMA encara més interessant, he creat una porra interactiva. És un dels meus primers projectes amb IA, però crec que ha quedat força resolutiu!!</p>
+  </header>
+
+  <main class="page-shell">
+    <section class="rules panel" aria-labelledby="rules-title">
+      <div class="section-heading">
+        <span class="section-heading__icon">📋</span>
+        <div>
+          <p>Com funciona</p>
+          <h2 id="rules-title">Normes de la porra</h2>
+        </div>
+      </div>
+      <ul>
+        <li><strong>4,50 €</strong> per casella: 4 € es juguen i 0,50 € són per al developer.</li>
+        <li>Màxim <strong>2 entrades</strong> per persona.</li>
+        <li>Espanya = <strong>X</strong> · Argentina = <strong>Y</strong> · Resultat: <strong>X–Y</strong>.</li>
+        <li>Bizum al <strong>692 84 37 43</strong> · assumpte: <strong>Nom PAGAT</strong>.</li>
+        <li>Els guanyadors cobren a la mitja part i al final del temps reglamentari.</li>
+      </ul>
+      <p class="referee">Si l’àrbitre la lia, no me’n faig responsable 😂</p>
+    </section>
+
+    <div class="content-layout">
+      <section class="game panel" aria-labelledby="board-title">
+        <div class="section-heading section-heading--split">
+          <div class="section-heading__group">
+            <span class="section-heading__icon">🎯</span>
+            <div>
+              <p>Tria el marcador</p>
+              <h2 id="board-title">Caselles disponibles</h2>
+            </div>
+          </div>
+          <span class="availability" data-available>25 lliures</span>
+        </div>
+
+        <div class="stats" aria-live="polite">
+          <div class="stat">
+            <span>Ocupades</span>
+            <strong data-stat="occupied">0 / 25</strong>
+          </div>
+          <div class="stat stat--gold">
+            <span>Guanyador final</span>
+            <strong data-stat="final-prize">0,00 €</strong>
+          </div>
+          <div class="stat stat--sky">
+            <span>Guanyador mitja part</span>
+            <strong data-stat="half-prize">0,00 €</strong>
+          </div>
+        </div>
+
+        <div class="entry-form">
+          <label for="participant-name">Nom del participant</label>
+          <div class="entry-form__row">
+            <input id="participant-name" type="text" maxlength="30" autocomplete="name" placeholder="Ex. Marc">
+            <button class="button button--primary" type="button" data-action="assign" disabled>Assignar caselles</button>
+          </div>
+          <p class="selection" data-selection>Escriu un nom i tria fins a 2 resultats.</p>
+        </div>
+
+        <div class="score-grid" data-grid aria-label="Espanya a l'eix horitzontal i Argentina a l'eix vertical"></div>
+
+        <div class="legend">
+          <span><i class="legend__swatch legend__swatch--picked"></i> Seleccionada</span>
+          <span><i class="legend__swatch legend__swatch--occupied"></i> Ocupada</span>
+          <span><i class="legend__swatch legend__swatch--winner"></i> Guanyadora</span>
+        </div>
+
+        <p class="feedback" data-feedback role="status" aria-live="polite"></p>
+
+        <div class="share-actions">
+          <button class="button" type="button" data-action="invite">Compartir invitació</button>
+          <button class="button" type="button" data-action="status">Compartir estat</button>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="scoreboard panel" aria-labelledby="scoreboard-title">
+          <div class="scoreboard__topline">
+            <span class="live-indicator" data-live-indicator><i></i><span data-live-label>PREPARTIT</span></span>
+            <span class="match-clock" data-clock>—</span>
+          </div>
+          <h2 id="scoreboard-title" class="visually-hidden">Marcador del partit</h2>
+          <div class="team-row">
+            <div class="team"><span class="team__flag">🇪🇸</span><span>España</span></div>
+            <strong data-score="spain">0</strong>
+          </div>
+          <div class="team-row">
+            <div class="team"><span class="team__flag">🇦🇷</span><span>Argentina</span></div>
+            <strong data-score="argentina">0</strong>
+          </div>
+          <div class="scoreboard__footer" data-match-note>El partit encara no ha començat</div>
+        </section>
+
+        <section class="money panel" aria-labelledby="money-title">
+          <div class="section-heading">
+            <span class="section-heading__icon">💰</span>
+            <div>
+              <p>Seguiment</p>
+              <h2 id="money-title">Pagaments</h2>
+            </div>
+          </div>
+          <div class="money__row"><span>Cobrat</span><strong data-money="collected">0,00 €</strong></div>
+          <div class="money__row"><span>Pendent</span><strong data-money="pending">0,00 €</strong></div>
+          <div class="money__row"><span>Developer</span><strong data-money="developer">0,00 €</strong></div>
+        </section>
+
+        <details class="admin panel">
+          <summary>⚙️ Controls de l’organitzador</summary>
+          <div class="admin__body">
+            <label for="match-phase">Estat del partit</label>
+            <select id="match-phase">
+              <option value="pre">Prepartit</option>
+              <option value="first">Primera part</option>
+              <option value="half">Mitja part</option>
+              <option value="second">Segona part</option>
+              <option value="final">Final</option>
+            </select>
+            <label for="match-minute">Minut</label>
+            <input id="match-minute" type="number" min="0" max="130" value="0">
+            <div class="admin-score">
+              <span>🇪🇸 España</span>
+              <button type="button" data-goal="spain:-1" aria-label="Restar un gol a Espanya">−</button>
+              <strong data-admin-score="spain">0</strong>
+              <button type="button" data-goal="spain:1" aria-label="Afegir un gol a Espanya">+</button>
+            </div>
+            <div class="admin-score">
+              <span>🇦🇷 Argentina</span>
+              <button type="button" data-goal="argentina:-1" aria-label="Restar un gol a Argentina">−</button>
+              <strong data-admin-score="argentina">0</strong>
+              <button type="button" data-goal="argentina:1" aria-label="Afegir un gol a Argentina">+</button>
+            </div>
+            <p class="admin__hint">Ara es desa en aquest navegador. Al pas de Supabase quedarà sincronitzat per a tothom.</p>
+          </div>
+        </details>
+      </aside>
+    </div>
+
+    <section class="roster panel" data-roster-wrap hidden aria-labelledby="roster-title">
+      <div class="section-heading section-heading--split">
+        <div class="section-heading__group">
+          <span class="section-heading__icon">👥</span>
+          <div>
+            <p>Control de la porra</p>
+            <h2 id="roster-title">Participants</h2>
+          </div>
+        </div>
+        <span class="paid-summary" data-paid-summary></span>
+      </div>
+      <div class="roster__list" data-roster></div>
+    </section>
+  </main>
+
+  <footer>Fet amb IA, nervis de final i una mica de mala llet arbitral.</footer>
+  <script src="app.js"></script>
+</body>
+</html>
