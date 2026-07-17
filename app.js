@@ -23,6 +23,7 @@
 
   let state = { entries: [], match: loadMatchState() };
   let selected = [];
+  let isAdmin = false;
 
   const grid = document.querySelector("[data-grid]");
   const nameInput = document.querySelector("#participant-name");
@@ -33,6 +34,57 @@
   const rosterWrap = document.querySelector("[data-roster-wrap]");
   const phaseSelect = document.querySelector("#match-phase");
   const minuteInput = document.querySelector("#match-minute");
+  const adminLoginPanel = document.querySelector("[data-admin-login]");
+  const adminControls = document.querySelector("[data-admin-controls]");
+  const adminEmailInput = document.querySelector("#admin-email");
+  const adminPasswordInput = document.querySelector("#admin-password");
+  const adminLoginButton = document.querySelector("[data-action='admin-login']");
+  const authFeedback = document.querySelector("[data-auth-feedback]");
+
+  function setAuthFeedback(message, isError = false) {
+    authFeedback.textContent = message;
+    authFeedback.classList.toggle("is-error", isError);
+  }
+
+  function applyAdminSession(session) {
+    isAdmin = Boolean(session?.user);
+    adminLoginPanel.hidden = isAdmin;
+    adminControls.hidden = !isAdmin;
+    if (!isAdmin) {
+      adminControls.open = false;
+    }
+    renderRoster();
+  }
+
+  async function loginAdmin() {
+    const email = adminEmailInput.value.trim();
+    const password = adminPasswordInput.value;
+
+    if (!email || !password) {
+      setAuthFeedback("Escriu el correu i la contrasenya.", true);
+      return;
+    }
+
+    adminLoginButton.disabled = true;
+    setAuthFeedback("Comprovant les dades…");
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    adminLoginButton.disabled = false;
+
+    if (error) {
+      setAuthFeedback("El correu o la contrasenya no són correctes.", true);
+      return;
+    }
+
+    adminPasswordInput.value = "";
+    setAuthFeedback("");
+  }
+
+  async function logoutAdmin() {
+    const { error } = await db.auth.signOut();
+    if (error) {
+      setFeedback("No s'ha pogut tancar la sessió.", true);
+    }
+  }
 
   function loadMatchState() {
     try {
@@ -221,7 +273,14 @@
       remove.dataset.remove = entry.id;
       remove.textContent = "Treure";
 
-      row.append(name, scores, paidLabel, remove);
+      if (isAdmin) {
+        row.append(name, scores, paidLabel, remove);
+      } else {
+        const paymentStatus = document.createElement("span");
+        paymentStatus.className = `payment-status ${entry.paid ? "is-paid" : ""}`;
+        paymentStatus.textContent = entry.paid ? "✅ Pagat" : "⏳ Pendent";
+        row.append(name, scores, paymentStatus);
+      }
       roster.appendChild(row);
     });
   }
@@ -371,7 +430,7 @@
 
   roster.addEventListener("change", async event => {
     const checkbox = event.target.closest("input[data-paid]");
-    if (!checkbox) return;
+    if (!checkbox || !isAdmin) return;
     const entry = state.entries.find(item => item.id === checkbox.dataset.paid);
     if (!entry) return;
 
@@ -395,7 +454,7 @@
 
   roster.addEventListener("click", async event => {
     const button = event.target.closest("button[data-remove]");
-    if (!button) return;
+    if (!button || !isAdmin) return;
     const entry = state.entries.find(item => item.id === button.dataset.remove);
     if (!entry) return;
 
@@ -410,8 +469,14 @@
 
   document.querySelector("[data-action='invite']").addEventListener("click", () => shareWhatsApp(inviteMessage()));
   document.querySelector("[data-action='status']").addEventListener("click", () => shareWhatsApp(statusMessage()));
+  adminLoginButton.addEventListener("click", loginAdmin);
+  adminPasswordInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") loginAdmin();
+  });
+  document.querySelector("[data-action='admin-logout']").addEventListener("click", logoutAdmin);
 
   phaseSelect.addEventListener("change", () => {
+    if (!isAdmin) return;
     state.match.phase = phaseSelect.value;
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
@@ -421,14 +486,15 @@
   });
 
   minuteInput.addEventListener("input", () => {
+    if (!isAdmin) return;
     state.match.minute = Math.max(0, Math.min(130, Number(minuteInput.value) || 0));
     saveMatchState();
     renderScoreboard();
   });
 
-  document.querySelector(".admin").addEventListener("click", event => {
+  adminControls.addEventListener("click", event => {
     const button = event.target.closest("button[data-goal]");
-    if (!button) return;
+    if (!button || !isAdmin) return;
     const [team, change] = button.dataset.goal.split(":");
     state.match[team] = Math.max(0, state.match[team] + Number(change));
     saveMatchState();
@@ -436,5 +502,7 @@
   });
 
   render();
+  db.auth.getSession().then(({ data }) => applyAdminSession(data.session));
+  db.auth.onAuthStateChange((_event, session) => applyAdminSession(session));
   loadRemoteEntries().then(subscribeToEntries);
 })();
