@@ -171,7 +171,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 }
 .entry-form label { display: block; font-size: .8rem; margin-bottom: 7px; }
 .entry-form__row { display: flex; gap: 8px; }
-.entry-form input, .admin input, .admin select {
+.entry-form input, .admin input, .admin select, .admin-login input {
   background: white;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -266,6 +266,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .money__row:first-of-type { margin-top: 16px; }
 .money__row span { color: var(--muted); }
 
+.admin-login { display: grid; gap: 10px; padding: 20px; }
+.admin-login h3 { margin: 0 0 4px; }
+.admin-login label { color: var(--muted); font-size: .78rem; }
+.admin-login__feedback { color: var(--success); font-size: .8rem; margin: 0; min-height: 1.2em; }
+.admin-login__feedback.is-error { color: var(--danger); }
 .admin { padding: 0; }
 .admin summary { cursor: pointer; font-weight: 800; padding: 18px 20px; }
 .admin__body { border-top: 1px solid var(--line); display: grid; gap: 10px; padding: 18px 20px 20px; }
@@ -288,6 +293,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 }
 .person-row__scores { color: var(--muted); font-size: .85rem; }
 .paid-check { align-items: center; display: flex; font-size: .85rem; gap: 6px; }
+.payment-status { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.payment-status.is-paid { color: var(--success); }
 .remove-button { background: transparent; border: 0; color: var(--danger); font-weight: 700; padding: 6px; }
 
 footer { color: var(--muted); font-size: .78rem; padding: 0 20px 36px; text-align: center; }
@@ -297,7 +304,7 @@ footer { color: var(--muted); font-size: .78rem; padding: 0 20px 36px; text-alig
   .rules ul { grid-template-columns: 1fr; }
   .content-layout { grid-template-columns: 1fr; }
   .sidebar { grid-row: 1; position: static; }
-  .sidebar .money, .sidebar .admin { display: none; }
+  .sidebar .money { display: none; }
   .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
   .scoreboard__topline, .scoreboard__footer { grid-column: 1 / -1; }
 }
