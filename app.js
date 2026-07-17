@@ -1,10 +1,14 @@
 (() => {
   "use strict";
 
+  const SUPABASE_URL = "https://hnezlrjxsbujkeupogvf.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_A_qihcL6So8YhJcMsZxxKw_50XjK59F";
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
   const ENTRY_PRICE = 4.5;
   const POOL_PER_ENTRY = 4;
   const DEVELOPER_FEE = 0.5;
-  const STORAGE_KEY = "finalissima-porra-state-v1";
+  const MATCH_STORAGE_KEY = "finalissima-porra-match-v1";
 
   const defaultState = {
     entries: [],
@@ -17,7 +21,7 @@
     }
   };
 
-  let state = loadState();
+  let state = { entries: [], match: loadMatchState() };
   let selected = [];
 
   const grid = document.querySelector("[data-grid]");
@@ -30,19 +34,61 @@
   const phaseSelect = document.querySelector("#match-phase");
   const minuteInput = document.querySelector("#match-minute");
 
-  function loadState() {
+  function loadMatchState() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (!saved || !Array.isArray(saved.entries) || !saved.match) return JSON.parse(JSON.stringify(defaultState));
-      saved.entries = saved.entries.map(entry => ({ ...entry, paid: entry.paid === true }));
-      return saved;
+      const saved = JSON.parse(localStorage.getItem(MATCH_STORAGE_KEY) || "null");
+      return saved && saved.phase ? saved : JSON.parse(JSON.stringify(defaultState.match));
     } catch (error) {
-      return JSON.parse(JSON.stringify(defaultState));
+      return JSON.parse(JSON.stringify(defaultState.match));
     }
   }
 
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  function saveMatchState() {
+    localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(state.match));
+  }
+
+  async function loadRemoteEntries() {
+    const { data, error } = await db
+      .from("caselles")
+      .select("id, nom, espanya, argentina, pagat, created_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      setFeedback("No s'han pogut carregar les caselles. Torna-ho a provar.", true);
+      return;
+    }
+
+    const grouped = new Map();
+    for (const row of data) {
+      const groupKey = row.nom.trim().toLocaleLowerCase("ca");
+      if (!grouped.has(groupKey)) {
+        grouped.set(groupKey, {
+          id: `db-${row.id}`,
+          name: row.nom,
+          scores: [],
+          paid: true,
+          rowIds: []
+        });
+      }
+      const entry = grouped.get(groupKey);
+      entry.scores.push(scoreKey(row.espanya, row.argentina));
+      entry.rowIds.push(row.id);
+      entry.paid = entry.paid && row.pagat === true;
+    }
+
+    state.entries = [...grouped.values()];
+    selected = selected.filter(key => !ownerOf(key));
+    render();
+  }
+
+  function subscribeToEntries() {
+    db.channel("caselles-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "caselles" },
+        () => loadRemoteEntries()
+      )
+      .subscribe();
   }
 
   function scoreKey(spain, argentina) {
@@ -223,24 +269,37 @@
     feedback.classList.toggle("is-error", isError);
   }
 
-  function assignEntry() {
+  async function assignEntry() {
     const name = nameInput.value.trim();
     if (!name || selected.length === 0) return;
     if (state.entries.some(entry => entry.name.toLocaleLowerCase("ca") === name.toLocaleLowerCase("ca"))) {
       setFeedback("Aquest nom ja té caselles assignades.", true);
       return;
     }
-    state.entries.push({
-      id: crypto.randomUUID(),
-      name,
-      scores: [...selected],
-      paid: false
+
+    assignButton.disabled = true;
+    setFeedback("Reservant caselles…");
+    const rows = selected.map(key => {
+      const [spain, argentina] = key.split("-").map(Number);
+      return { nom: name, espanya: spain, argentina, pagat: false };
     });
-    saveState();
+    const { error } = await db.from("caselles").insert(rows);
+
+    if (error) {
+      setFeedback(
+        error.code === "23505"
+          ? "Una d'aquestes caselles acaba de ser ocupada. Tria'n una altra."
+          : "No s'ha pogut fer la reserva. Torna-ho a provar.",
+        true
+      );
+      await loadRemoteEntries();
+      return;
+    }
+
     selected = [];
     nameInput.value = "";
+    await loadRemoteEntries();
     setFeedback(`${name} ha quedat apuntat/da. Falta confirmar el Bizum.`);
-    render();
   }
 
   function inviteMessage() {
@@ -310,25 +369,43 @@
   });
   assignButton.addEventListener("click", assignEntry);
 
-  roster.addEventListener("change", event => {
+  roster.addEventListener("change", async event => {
     const checkbox = event.target.closest("input[data-paid]");
     if (!checkbox) return;
     const entry = state.entries.find(item => item.id === checkbox.dataset.paid);
     if (!entry) return;
+
+    const previous = entry.paid;
     entry.paid = checkbox.checked;
-    saveState();
-    setFeedback(`${entry.name} consta com a ${entry.paid ? "pagat/da" : "pendent"}.`);
     renderStats();
+    const { error } = await db
+      .from("caselles")
+      .update({ pagat: entry.paid })
+      .in("id", entry.rowIds);
+
+    if (error) {
+      entry.paid = previous;
+      checkbox.checked = previous;
+      renderStats();
+      setFeedback("No s'ha pogut actualitzar el pagament.", true);
+      return;
+    }
+    setFeedback(`${entry.name} consta com a ${entry.paid ? "pagat/da" : "pendent"}.`);
   });
 
-  roster.addEventListener("click", event => {
+  roster.addEventListener("click", async event => {
     const button = event.target.closest("button[data-remove]");
     if (!button) return;
     const entry = state.entries.find(item => item.id === button.dataset.remove);
-    state.entries = state.entries.filter(item => item.id !== button.dataset.remove);
-    saveState();
-    setFeedback(entry ? `${entry.name} s'ha tret de la porra.` : "Participant eliminat.");
-    render();
+    if (!entry) return;
+
+    const { error } = await db.from("caselles").delete().in("id", entry.rowIds);
+    if (error) {
+      setFeedback("No s'ha pogut treure el participant.", true);
+      return;
+    }
+    await loadRemoteEntries();
+    setFeedback(`${entry.name} s'ha tret de la porra.`);
   });
 
   document.querySelector("[data-action='invite']").addEventListener("click", () => shareWhatsApp(inviteMessage()));
@@ -339,13 +416,13 @@
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
     }
-    saveState();
+    saveMatchState();
     render();
   });
 
   minuteInput.addEventListener("input", () => {
     state.match.minute = Math.max(0, Math.min(130, Number(minuteInput.value) || 0));
-    saveState();
+    saveMatchState();
     renderScoreboard();
   });
 
@@ -354,9 +431,10 @@
     if (!button) return;
     const [team, change] = button.dataset.goal.split(":");
     state.match[team] = Math.max(0, state.match[team] + Number(change));
-    saveState();
+    saveMatchState();
     render();
   });
 
   render();
+  loadRemoteEntries().then(subscribeToEntries);
 })();
