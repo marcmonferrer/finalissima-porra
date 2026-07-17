@@ -118,7 +118,37 @@
           <div class="money__row"><span>Developer</span><strong data-money="developer">0,00 €</strong></div>
         </section>
 
-        <details class="admin panel">
+        <section class="admin-login panel" data-admin-login>
+  <h3>🔐 Accés administrador</h3>
+
+  <label for="admin-email">Correu electrònic</label>
+  <input
+    id="admin-email"
+    type="email"
+    autocomplete="username"
+    placeholder="Correu de l’administrador"
+  >
+
+  <label for="admin-password">Contrasenya</label>
+  <input
+    id="admin-password"
+    type="password"
+    autocomplete="current-password"
+    placeholder="Contrasenya"
+  >
+
+  <button
+    class="button button--primary"
+    type="button"
+    data-action="admin-login"
+  >
+    Iniciar sessió
+  </button>
+
+  <p class="admin-login__feedback" data-auth-feedback></p>
+</section>
+
+<details class="admin panel" data-admin-controls hidden>
           <summary>⚙️ Controls de l’organitzador</summary>
           <div class="admin__body">
             <label for="match-phase">Estat del partit</label>
