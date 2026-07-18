@@ -8,7 +8,6 @@
   const ENTRY_PRICE = 4.5;
   const POOL_PER_ENTRY = 4;
   const DEVELOPER_FEE = 0.5;
-  const MATCH_STORAGE_KEY = "finalissima-porra-match-v1";
 
   const defaultState = {
     entries: [],
@@ -21,7 +20,7 @@
     }
   };
 
-  let state = { entries: [], match: loadMatchState() };
+  let state = { entries: [], match: JSON.parse(JSON.stringify(defaultState.match)) };
   let selected = [];
   let isAdmin = false;
 
@@ -47,7 +46,7 @@
   }
 
   function applyAdminSession(session) {
-    isAdmin = Boolean(session?.user);
+    isAdmin = session?.user?.app_metadata?.porra_admin === true;
     adminLoginPanel.hidden = isAdmin;
     adminControls.hidden = !isAdmin;
     if (!isAdmin) {
@@ -84,19 +83,6 @@
     if (error) {
       setFeedback("No s'ha pogut tancar la sessió.", true);
     }
-  }
-
-  function loadMatchState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(MATCH_STORAGE_KEY) || "null");
-      return saved && saved.phase ? saved : JSON.parse(JSON.stringify(defaultState.match));
-    } catch (error) {
-      return JSON.parse(JSON.stringify(defaultState.match));
-    }
-  }
-
-  function saveMatchState() {
-    localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(state.match));
   }
 
   async function loadRemoteEntries() {
@@ -141,6 +127,55 @@
         () => loadRemoteEntries()
       )
       .subscribe();
+  }
+
+  async function loadRemoteMatch() {
+    const { data, error } = await db
+      .from("partit")
+      .select("id, fase, minut, espanya, argentina, espanya_mitja, argentina_mitja")
+      .eq("id", 1)
+      .single();
+
+    if (error) {
+      setFeedback("El marcador en directe encara no està disponible.", true);
+      return;
+    }
+
+    state.match = {
+      phase: data.fase,
+      minute: data.minut,
+      spain: data.espanya,
+      argentina: data.argentina,
+      halfScore: data.espanya_mitja === null || data.argentina_mitja === null
+        ? null
+        : { spain: data.espanya_mitja, argentina: data.argentina_mitja }
+    };
+    render();
+  }
+
+  function subscribeToMatch() {
+    db.channel("partit-live")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "partit", filter: "id=eq.1" },
+        () => loadRemoteMatch()
+      )
+      .subscribe();
+  }
+
+  async function updateRemoteMatch(patch) {
+    if (!isAdmin) return false;
+    const { error } = await db
+      .from("partit")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+
+    if (error) {
+      setFeedback("No s'ha pogut actualitzar el marcador.", true);
+      return false;
+    }
+
+    return true;
   }
 
   function scoreKey(spain, argentina) {
@@ -400,6 +435,42 @@
     ].join("\n");
   }
 
+  function matchUpdateMessage() {
+    const { phase, minute, spain, argentina, halfScore } = state.match;
+    const phaseLabels = {
+      pre: "PREPARTIT",
+      first: `PRIMERA PART · MINUT ${minute}`,
+      half: "MITJA PART",
+      second: `SEGONA PART · MINUT ${minute}`,
+      final: "FINAL"
+    };
+    const key = scoreKey(spain, argentina);
+    const owner = ownerOf(key);
+    const lines = [
+      "⚽ ACTUALITZACIÓ FINALÍSSIMA",
+      `${phaseLabels[phase] || "PARTIT"}`,
+      "",
+      `🇪🇸 ESPAÑA ${spain}–${argentina} ARGENTINA 🇦🇷`,
+      "",
+      owner
+        ? `🎯 Ara mateix la casella guanyadora és la de ${owner.name} (${shortScore(key)}).`
+        : `👀 El ${shortScore(key)} no té propietari.`
+    ];
+
+    if (halfScore && phase !== "half") {
+      const halfKey = scoreKey(halfScore.spain, halfScore.argentina);
+      const halfOwner = ownerOf(halfKey);
+      lines.push(
+        halfOwner
+          ? `⏱️ Mitja part: ${shortScore(halfKey)} · ${halfOwner.name}.`
+          : `⏱️ Mitja part: ${shortScore(halfKey)} · casella sense propietari.`
+      );
+    }
+
+    if (phase !== "final") lines.push("🔥 Encara pot passar de tot!");
+    return lines.join("\n");
+  }
+
   function shareWhatsApp(message) {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
   }
@@ -469,40 +540,80 @@
 
   document.querySelector("[data-action='invite']").addEventListener("click", () => shareWhatsApp(inviteMessage()));
   document.querySelector("[data-action='status']").addEventListener("click", () => shareWhatsApp(statusMessage()));
+  document.querySelector("[data-action='match-update']").addEventListener("click", () => shareWhatsApp(matchUpdateMessage()));
   adminLoginButton.addEventListener("click", loginAdmin);
   adminPasswordInput.addEventListener("keydown", event => {
     if (event.key === "Enter") loginAdmin();
   });
   document.querySelector("[data-action='admin-logout']").addEventListener("click", logoutAdmin);
 
-  phaseSelect.addEventListener("change", () => {
+  phaseSelect.addEventListener("change", async () => {
     if (!isAdmin) return;
+    const previous = JSON.parse(JSON.stringify(state.match));
     state.match.phase = phaseSelect.value;
+    if (state.match.phase === "pre" || state.match.phase === "first") {
+      state.match.halfScore = null;
+    }
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
     }
-    saveMatchState();
     render();
+    const patch = {
+      fase: state.match.phase,
+      espanya_mitja: state.match.halfScore?.spain ?? null,
+      argentina_mitja: state.match.halfScore?.argentina ?? null
+    };
+    if (!await updateRemoteMatch(patch)) {
+      state.match = previous;
+      render();
+    }
   });
 
-  minuteInput.addEventListener("input", () => {
+  minuteInput.addEventListener("change", async () => {
     if (!isAdmin) return;
+    const previous = state.match.minute;
     state.match.minute = Math.max(0, Math.min(130, Number(minuteInput.value) || 0));
-    saveMatchState();
     renderScoreboard();
+    if (!await updateRemoteMatch({ minut: state.match.minute })) {
+      state.match.minute = previous;
+      renderScoreboard();
+    }
   });
 
-  adminControls.addEventListener("click", event => {
+  adminControls.addEventListener("click", async event => {
     const button = event.target.closest("button[data-goal]");
     if (!button || !isAdmin) return;
     const [team, change] = button.dataset.goal.split(":");
+    const previous = state.match[team];
+    const previousHalfScore = state.match.halfScore
+      ? { ...state.match.halfScore }
+      : null;
     state.match[team] = Math.max(0, state.match[team] + Number(change));
-    saveMatchState();
+    if (state.match.phase === "half") {
+      state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
+    }
     render();
+    const column = team === "spain" ? "espanya" : "argentina";
+    const patch = { [column]: state.match[team] };
+    if (state.match.phase === "half") {
+      patch.espanya_mitja = state.match.halfScore.spain;
+      patch.argentina_mitja = state.match.halfScore.argentina;
+    }
+    button.disabled = true;
+    const updated = await updateRemoteMatch(patch);
+    button.disabled = false;
+    if (!updated) {
+      state.match[team] = previous;
+      state.match.halfScore = previousHalfScore;
+      render();
+    }
   });
 
   render();
   db.auth.getSession().then(({ data }) => applyAdminSession(data.session));
   db.auth.onAuthStateChange((_event, session) => applyAdminSession(session));
-  loadRemoteEntries().then(subscribeToEntries);
+  Promise.all([loadRemoteEntries(), loadRemoteMatch()]).then(() => {
+    subscribeToEntries();
+    subscribeToMatch();
+  });
 })();
