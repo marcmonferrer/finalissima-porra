@@ -8,6 +8,9 @@ create table if not exists public.partit (
   argentina smallint not null default 0 check (argentina between 0 and 20),
   espanya_mitja smallint check (espanya_mitja between 0 and 20),
   argentina_mitja smallint check (argentina_mitja between 0 and 20),
+  provider_fixture_id bigint,
+  provider_status text,
+  last_synced_at timestamptz,
   updated_at timestamptz not null default now()
 );
 
