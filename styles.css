@@ -195,6 +195,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .button:disabled { cursor: not-allowed; opacity: .5; }
 .button--primary { background: var(--red); border-color: var(--red); color: white; white-space: nowrap; }
 .button--primary:hover { background: var(--red-dark); }
+.button--whatsapp { background: #e9f8f0; border-color: #b9e3cc; color: #116c3e; }
+.button--whatsapp:hover { background: #d9f2e4; }
 
 .score-grid {
   display: grid;
