@@ -8,7 +8,11 @@
   const ENTRY_PRICE = 4.5;
   const POOL_PER_ENTRY = 4;
   const DEVELOPER_FEE = 0.5;
-  const MATCH_STORAGE_KEY = "finalissima-porra-match-v1";
+  const SPECIAL_BETS = {
+    "4-4": { short: "Messi ×3", label: "Hat-trick de Messi" },
+    "3-4": { short: "Lamine ×2", label: "Doblet de Lamine" },
+    "4-3": { short: "+6 gols", label: "Més de 6 gols totals" }
+  };
 
   const defaultState = {
     entries: [],
@@ -17,11 +21,13 @@
       minute: 0,
       spain: 0,
       argentina: 0,
-      halfScore: null
+      halfScore: null,
+      messiHatTrick: false,
+      lamineBrace: false
     }
   };
 
-  let state = { entries: [], match: loadMatchState() };
+  let state = { entries: [], match: JSON.parse(JSON.stringify(defaultState.match)) };
   let selected = [];
   let isAdmin = false;
 
@@ -47,7 +53,7 @@
   }
 
   function applyAdminSession(session) {
-    isAdmin = Boolean(session?.user);
+    isAdmin = session?.user?.app_metadata?.porra_admin === true;
     adminLoginPanel.hidden = isAdmin;
     adminControls.hidden = !isAdmin;
     if (!isAdmin) {
@@ -84,19 +90,6 @@
     if (error) {
       setFeedback("No s'ha pogut tancar la sessió.", true);
     }
-  }
-
-  function loadMatchState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(MATCH_STORAGE_KEY) || "null");
-      return saved && saved.phase ? saved : JSON.parse(JSON.stringify(defaultState.match));
-    } catch (error) {
-      return JSON.parse(JSON.stringify(defaultState.match));
-    }
-  }
-
-  function saveMatchState() {
-    localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(state.match));
   }
 
   async function loadRemoteEntries() {
@@ -143,15 +136,75 @@
       .subscribe();
   }
 
+  async function loadRemoteMatch() {
+    const { data, error } = await db
+      .from("partit")
+      .select("id, fase, minut, espanya, argentina, espanya_mitja, argentina_mitja, messi_hat_trick, lamine_doblet")
+      .eq("id", 1)
+      .single();
+
+    if (error) {
+      setFeedback("El marcador en directe encara no està disponible.", true);
+      return;
+    }
+
+    state.match = {
+      phase: data.fase,
+      minute: data.minut,
+      spain: data.espanya,
+      argentina: data.argentina,
+      halfScore: data.espanya_mitja === null || data.argentina_mitja === null
+        ? null
+        : { spain: data.espanya_mitja, argentina: data.argentina_mitja },
+      messiHatTrick: data.messi_hat_trick === true,
+      lamineBrace: data.lamine_doblet === true
+    };
+    render();
+  }
+
+  function subscribeToMatch() {
+    db.channel("partit-live")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "partit", filter: "id=eq.1" },
+        () => loadRemoteMatch()
+      )
+      .subscribe();
+  }
+
+  async function updateRemoteMatch(patch) {
+    if (!isAdmin) return false;
+    const { error } = await db
+      .from("partit")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+
+    if (error) {
+      setFeedback("No s'ha pogut actualitzar el marcador.", true);
+      return false;
+    }
+
+    return true;
+  }
+
   function scoreKey(spain, argentina) {
     return `${spain}-${argentina}`;
   }
 
-  function shortScore(key) {
+  function isSpecialBet(key) {
+    return Boolean(SPECIAL_BETS[key]);
+  }
+
+  function scoreResult(key) {
     return key.replace("-", "–");
   }
 
+  function shortScore(key) {
+    return SPECIAL_BETS[key]?.short || scoreResult(key);
+  }
+
   function longScore(key) {
+    if (SPECIAL_BETS[key]) return SPECIAL_BETS[key].label;
     const [spain, argentina] = key.split("-");
     return `Espanya ${spain}–${argentina} Argentina`;
   }
@@ -160,11 +213,25 @@
     return state.entries.find(entry => entry.scores.includes(key));
   }
 
+  function achievedSpecialKeys() {
+    const keys = [];
+    if (state.match.messiHatTrick) keys.push("4-4");
+    if (state.match.lamineBrace) keys.push("3-4");
+    if (state.match.spain + state.match.argentina > 6) keys.push("4-3");
+    return keys;
+  }
+
   function winningKeys() {
     const keys = [];
-    if (state.match.halfScore) keys.push(scoreKey(state.match.halfScore.spain, state.match.halfScore.argentina));
-    if (state.match.phase === "final") keys.push(scoreKey(state.match.spain, state.match.argentina));
-    return keys;
+    if (state.match.halfScore) {
+      const halfKey = scoreKey(state.match.halfScore.spain, state.match.halfScore.argentina);
+      if (!isSpecialBet(halfKey)) keys.push(halfKey);
+    }
+    if (state.match.phase === "final") {
+      const finalKey = scoreKey(state.match.spain, state.match.argentina);
+      if (!isSpecialBet(finalKey)) keys.push(finalKey);
+    }
+    return [...new Set([...keys, ...achievedSpecialKeys()])];
   }
 
   function allScores() {
@@ -208,6 +275,7 @@
         button.textContent = shortScore(key);
         button.setAttribute("aria-label", longScore(key));
         button.setAttribute("aria-pressed", selected.includes(key) ? "true" : "false");
+        if (isSpecialBet(key)) button.classList.add("is-special");
         if (selected.includes(key)) button.classList.add("is-picked");
         if (owner) {
           button.classList.add("is-occupied");
@@ -229,8 +297,9 @@
     const collected = paidCells * ENTRY_PRICE;
 
     document.querySelector("[data-stat='occupied']").textContent = `${occupied} / 25`;
-    document.querySelector("[data-stat='final-prize']").textContent = money(occupied * POOL_PER_ENTRY * .75);
+    document.querySelector("[data-stat='final-prize']").textContent = money(occupied * POOL_PER_ENTRY * .50);
     document.querySelector("[data-stat='half-prize']").textContent = money(occupied * POOL_PER_ENTRY * .25);
+    document.querySelector("[data-stat='special-prize']").textContent = money(occupied * POOL_PER_ENTRY * .25);
     document.querySelector("[data-available]").textContent = `${25 - occupied} lliures`;
     document.querySelector("[data-money='collected']").textContent = money(collected);
     document.querySelector("[data-money='pending']").textContent = money(totalOwed - collected);
@@ -238,7 +307,7 @@
     document.querySelector("[data-paid-summary]").textContent = `${paidEntries.length}/${state.entries.length} pagats`;
 
     if (selected.length === 0) {
-      selectionText.textContent = "Escriu un nom i tria fins a 2 resultats.";
+      selectionText.textContent = "Escriu un nom i tria fins a 2 caselles.";
     } else {
       selectionText.textContent = `${selected.map(longScore).join(" · ")} · ${money(selected.length * ENTRY_PRICE)}`;
     }
@@ -305,11 +374,17 @@
     document.querySelector("[data-admin-score='argentina']").textContent = argentina;
     phaseSelect.value = phase;
     minuteInput.value = minute;
+    document.querySelectorAll("[data-special-result]").forEach(input => {
+      input.checked = Boolean(state.match[input.dataset.specialResult]);
+    });
   }
 
   function winnerNote(key, prefix) {
+    if (isSpecialBet(key)) {
+      return `${scoreResult(key)} · marcador substituït per una aposta especial`;
+    }
     const owner = ownerOf(key);
-    return owner ? `${prefix}: ${owner.name} (${shortScore(key)})` : `${shortScore(key)} · casella sense propietari`;
+    return owner ? `${prefix}: ${owner.name} (${scoreResult(key)})` : `${scoreResult(key)} · casella sense propietari`;
   }
 
   function render() {
@@ -373,8 +448,10 @@
       "💶 4,50 € per casella (se'n juguen 4 €)",
       "✌️ Màxim 2 entrades per persona",
       "📐 Espanya = X · Argentina = Y · Resultat: X–Y",
-      "🏆 3 € per casella per al guanyador final",
-      "⏱️ 1 € per casella per al guanyador de la mitja part",
+      "🎁 Especials: hat-trick de Messi · doblet de Lamine · més de 6 gols",
+      "⏱️ 25% per al marcador de la mitja part, sempre",
+      "🏆 50% per al marcador final, sempre",
+      "✨ 25% per a les especials encertades; si no n'hi ha cap, s'afegeix al premi final",
       "🧑‍💻 0,50 € per casella per al developer de l'app",
       "📲 Bizum: 692 84 37 43 · assumpte: Nom PAGAT",
       "",
@@ -394,10 +471,58 @@
       "",
       ...lines,
       "",
-      `Guanyador final: ${money(occupied * POOL_PER_ENTRY * .75)}`,
-      `Guanyador mitja part: ${money(occupied * POOL_PER_ENTRY * .25)}`,
+      `Final garantit (50%): ${money(occupied * POOL_PER_ENTRY * .50)}`,
+      `Mitja part (25%): ${money(occupied * POOL_PER_ENTRY * .25)}`,
+      `Especials o bonus final (25%): ${money(occupied * POOL_PER_ENTRY * .25)}`,
       `Developer: ${money(occupied * DEVELOPER_FEE)}`
     ].join("\n");
+  }
+
+  function matchUpdateMessage() {
+    const { phase, minute, spain, argentina, halfScore } = state.match;
+    const phaseLabels = {
+      pre: "PREPARTIT",
+      first: `PRIMERA PART · MINUT ${minute}`,
+      half: "MITJA PART",
+      second: `SEGONA PART · MINUT ${minute}`,
+      final: "FINAL"
+    };
+    const key = scoreKey(spain, argentina);
+    const owner = isSpecialBet(key) ? null : ownerOf(key);
+    const lines = [
+      "⚽ ACTUALITZACIÓ FINALÍSSIMA",
+      `${phaseLabels[phase] || "PARTIT"}`,
+      "",
+      `🇪🇸 ESPAÑA ${spain}–${argentina} ARGENTINA 🇦🇷`,
+      "",
+      owner
+        ? `🎯 Ara mateix la casella guanyadora és la de ${owner.name} (${scoreResult(key)}).`
+        : isSpecialBet(key)
+          ? `👀 El ${scoreResult(key)} s'ha substituït per una aposta especial.`
+          : `👀 El ${scoreResult(key)} no té propietari.`
+    ];
+
+    if (halfScore && phase !== "half") {
+      const halfKey = scoreKey(halfScore.spain, halfScore.argentina);
+      const halfOwner = isSpecialBet(halfKey) ? null : ownerOf(halfKey);
+      lines.push(
+        halfOwner
+          ? `⏱️ Mitja part: ${scoreResult(halfKey)} · ${halfOwner.name}.`
+          : isSpecialBet(halfKey)
+            ? `⏱️ Mitja part: ${scoreResult(halfKey)} · marcador substituït per una aposta especial.`
+            : `⏱️ Mitja part: ${scoreResult(halfKey)} · casella sense propietari.`
+      );
+    }
+
+    const specialLines = achievedSpecialKeys().map(specialKey => {
+      const specialOwner = ownerOf(specialKey);
+      return specialOwner
+        ? `${SPECIAL_BETS[specialKey].label}: ${specialOwner.name}`
+        : `${SPECIAL_BETS[specialKey].label}: sense propietari`;
+    });
+    if (specialLines.length) lines.push(`🎁 Especials completes: ${specialLines.join(" · ")}.`);
+    if (phase !== "final") lines.push("🔥 Encara pot passar de tot!");
+    return lines.join("\n");
   }
 
   function shareWhatsApp(message) {
@@ -469,40 +594,99 @@
 
   document.querySelector("[data-action='invite']").addEventListener("click", () => shareWhatsApp(inviteMessage()));
   document.querySelector("[data-action='status']").addEventListener("click", () => shareWhatsApp(statusMessage()));
+  document.querySelector("[data-action='match-update']").addEventListener("click", () => shareWhatsApp(matchUpdateMessage()));
   adminLoginButton.addEventListener("click", loginAdmin);
   adminPasswordInput.addEventListener("keydown", event => {
     if (event.key === "Enter") loginAdmin();
   });
   document.querySelector("[data-action='admin-logout']").addEventListener("click", logoutAdmin);
 
-  phaseSelect.addEventListener("change", () => {
+  phaseSelect.addEventListener("change", async () => {
     if (!isAdmin) return;
+    const previous = JSON.parse(JSON.stringify(state.match));
     state.match.phase = phaseSelect.value;
+    if (state.match.phase === "pre" || state.match.phase === "first") {
+      state.match.halfScore = null;
+    }
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
     }
-    saveMatchState();
     render();
+    const patch = {
+      fase: state.match.phase,
+      espanya_mitja: state.match.halfScore?.spain ?? null,
+      argentina_mitja: state.match.halfScore?.argentina ?? null
+    };
+    if (!await updateRemoteMatch(patch)) {
+      state.match = previous;
+      render();
+    }
   });
 
-  minuteInput.addEventListener("input", () => {
+  minuteInput.addEventListener("change", async () => {
     if (!isAdmin) return;
+    const previous = state.match.minute;
     state.match.minute = Math.max(0, Math.min(130, Number(minuteInput.value) || 0));
-    saveMatchState();
     renderScoreboard();
+    if (!await updateRemoteMatch({ minut: state.match.minute })) {
+      state.match.minute = previous;
+      renderScoreboard();
+    }
   });
 
-  adminControls.addEventListener("click", event => {
+  adminControls.addEventListener("change", async event => {
+    const input = event.target.closest("input[data-special-result]");
+    if (!input || !isAdmin) return;
+    const field = input.dataset.specialResult;
+    const columns = {
+      messiHatTrick: "messi_hat_trick",
+      lamineBrace: "lamine_doblet"
+    };
+    const previous = state.match[field];
+    state.match[field] = input.checked;
+    render();
+    if (!await updateRemoteMatch({ [columns[field]]: state.match[field] })) {
+      state.match[field] = previous;
+      render();
+      return;
+    }
+    setFeedback(`${longScore(field === "messiHatTrick" ? "4-4" : "3-4")}: ${state.match[field] ? "completa" : "pendent"}.`);
+  });
+
+  adminControls.addEventListener("click", async event => {
     const button = event.target.closest("button[data-goal]");
     if (!button || !isAdmin) return;
     const [team, change] = button.dataset.goal.split(":");
+    const previous = state.match[team];
+    const previousHalfScore = state.match.halfScore
+      ? { ...state.match.halfScore }
+      : null;
     state.match[team] = Math.max(0, state.match[team] + Number(change));
-    saveMatchState();
+    if (state.match.phase === "half") {
+      state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
+    }
     render();
+    const column = team === "spain" ? "espanya" : "argentina";
+    const patch = { [column]: state.match[team] };
+    if (state.match.phase === "half") {
+      patch.espanya_mitja = state.match.halfScore.spain;
+      patch.argentina_mitja = state.match.halfScore.argentina;
+    }
+    button.disabled = true;
+    const updated = await updateRemoteMatch(patch);
+    button.disabled = false;
+    if (!updated) {
+      state.match[team] = previous;
+      state.match.halfScore = previousHalfScore;
+      render();
+    }
   });
 
   render();
   db.auth.getSession().then(({ data }) => applyAdminSession(data.session));
   db.auth.onAuthStateChange((_event, session) => applyAdminSession(session));
-  loadRemoteEntries().then(subscribeToEntries);
+  Promise.all([loadRemoteEntries(), loadRemoteMatch()]).then(() => {
+    subscribeToEntries();
+    subscribeToMatch();
+  });
 })();

@@ -28,8 +28,11 @@
         <li><strong>4,50 €</strong> per casella: 4 € es juguen i 0,50 € són per al developer.</li>
         <li>Màxim <strong>2 entrades</strong> per persona.</li>
         <li>Espanya = <strong>X</strong> · Argentina = <strong>Y</strong> · Resultat: <strong>X–Y</strong>.</li>
+        <li><strong>Apostes especials:</strong> Messi marca 3 gols o més, Lamine en marca 2 o més, o hi ha més de 6 gols totals.</li>
+        <li><strong>Premis:</strong> 25% per al marcador de la mitja part i 50% per al marcador final, sempre.</li>
+        <li>El <strong>25% restant</strong> es reparteix entre les apostes especials encertades. Si no se n’encerta cap, se suma al premi final, que passa al 75%.</li>
+        <li>Només compten els gols del temps reglamentari; la tanda de penals no compta.</li>
         <li>Bizum al <strong>692 84 37 43</strong> · assumpte: <strong>Nom PAGAT</strong>.</li>
-        <li>Els guanyadors cobren a la mitja part i al final del temps reglamentari.</li>
       </ul>
       <p class="referee">Si l’àrbitre la lia, no me’n faig responsable 😂</p>
     </section>
@@ -40,8 +43,8 @@
           <div class="section-heading__group">
             <span class="section-heading__icon">🎯</span>
             <div>
-              <p>Tria el marcador</p>
-              <h2 id="board-title">Caselles disponibles</h2>
+              <p>Tria la teva aposta</p>
+              <h2 id="board-title">Resultats i apostes especials</h2>
             </div>
           </div>
           <span class="availability" data-available>25 lliures</span>
@@ -53,12 +56,16 @@
             <strong data-stat="occupied">0 / 25</strong>
           </div>
           <div class="stat stat--gold">
-            <span>Guanyador final</span>
+            <span>Final garantit · 50%</span>
             <strong data-stat="final-prize">0,00 €</strong>
           </div>
           <div class="stat stat--sky">
-            <span>Guanyador mitja part</span>
+            <span>Mitja part · 25%</span>
             <strong data-stat="half-prize">0,00 €</strong>
+          </div>
+          <div class="stat stat--special">
+            <span>Especials / bonus final · 25%</span>
+            <strong data-stat="special-prize">0,00 €</strong>
           </div>
         </div>
 
@@ -68,14 +75,15 @@
             <input id="participant-name" type="text" maxlength="30" autocomplete="name" placeholder="Ex. Marc">
             <button class="button button--primary" type="button" data-action="assign" disabled>Assignar caselles</button>
           </div>
-          <p class="selection" data-selection>Escriu un nom i tria fins a 2 resultats.</p>
+          <p class="selection" data-selection>Escriu un nom i tria fins a 2 caselles.</p>
         </div>
 
-        <div class="score-grid" data-grid aria-label="Espanya a l'eix horitzontal i Argentina a l'eix vertical"></div>
+        <div class="score-grid" data-grid aria-label="Resultats amb Espanya a l'eix horitzontal, Argentina a l'eix vertical i tres apostes especials"></div>
 
         <div class="legend">
           <span><i class="legend__swatch legend__swatch--picked"></i> Seleccionada</span>
           <span><i class="legend__swatch legend__swatch--occupied"></i> Ocupada</span>
+          <span><i class="legend__swatch legend__swatch--special"></i> Aposta especial</span>
           <span><i class="legend__swatch legend__swatch--winner"></i> Guanyadora</span>
         </div>
 
@@ -173,8 +181,15 @@
               <strong data-admin-score="argentina">0</strong>
               <button type="button" data-goal="argentina:1" aria-label="Afegir un gol a Argentina">+</button>
             </div>
+            <fieldset class="admin-specials">
+              <legend>Apostes especials</legend>
+              <label><input type="checkbox" data-special-result="messiHatTrick"> Messi marca 3 gols o més</label>
+              <label><input type="checkbox" data-special-result="lamineBrace"> Lamine marca 2 gols o més</label>
+              <p>La casella de més de 6 gols s’activa automàticament.</p>
+            </fieldset>
+            <button class="button button--whatsapp" type="button" data-action="match-update">📲 Compartir actualització</button>
             <button class="button" type="button" data-action="admin-logout">Tancar sessió</button>
-            <p class="admin__hint">Sessió protegida amb Supabase. El marcador es desa temporalment en aquest navegador.</p>
+            <p class="admin__hint">Sessió protegida amb Supabase. El marcador s’actualitza en directe per a tothom.</p>
           </div>
         </details>
       </aside>
