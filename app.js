@@ -8,6 +8,7 @@
   const ENTRY_PRICE = 4.5;
   const POOL_PER_ENTRY = 4;
   const DEVELOPER_FEE = 0.5;
+  const ENTRY_CLOSES_AT = new Date("2026-07-19T20:45:00+02:00");
   const SPECIAL_BETS = {
     "4-4": { short: "Messi ×3", label: "Hat-trick de Messi" },
     "3-4": { short: "Lamine ×2", label: "Doblet de Lamine" },
@@ -207,6 +208,10 @@
     return `${spain}-${argentina}`;
   }
 
+  function isEntriesClosed() {
+    return Date.now() >= ENTRY_CLOSES_AT.getTime();
+  }
+
   function isSpecialBet(key) {
     return Boolean(SPECIAL_BETS[key]);
   }
@@ -278,6 +283,7 @@
     }
 
     const winners = winningKeys();
+    const entriesClosed = isEntriesClosed();
     for (let argentina = 0; argentina <= 4; argentina += 1) {
       const axis = document.createElement("div");
       axis.className = "axis";
@@ -302,6 +308,9 @@
           button.disabled = true;
           button.title = owner.name;
           button.setAttribute("aria-label", `${longScore(key)}, ocupada per ${owner.name}`);
+        } else if (entriesClosed) {
+          button.disabled = true;
+          button.title = "La porra està tancada";
         }
         if (winners.includes(key)) button.classList.add("is-winner");
         grid.appendChild(button);
@@ -320,18 +329,24 @@
     document.querySelector("[data-stat='final-prize']").textContent = money(occupied * POOL_PER_ENTRY * .50);
     document.querySelector("[data-stat='half-prize']").textContent = money(occupied * POOL_PER_ENTRY * .25);
     document.querySelector("[data-stat='special-prize']").textContent = money(occupied * POOL_PER_ENTRY * .25);
-    document.querySelector("[data-available]").textContent = `${25 - occupied} lliures`;
+    const entriesClosed = isEntriesClosed();
+    document.querySelector("[data-available]").textContent = entriesClosed
+      ? "Porra tancada"
+      : `${25 - occupied} lliures`;
     document.querySelector("[data-money='collected']").textContent = money(collected);
     document.querySelector("[data-money='pending']").textContent = money(totalOwed - collected);
     document.querySelector("[data-money='developer']").textContent = money(occupied * DEVELOPER_FEE);
     document.querySelector("[data-paid-summary]").textContent = `${paidEntries.length}/${state.entries.length} pagats`;
 
-    if (selected.length === 0) {
+    if (entriesClosed) {
+      selectionText.textContent = "🔒 La porra està tancada des de les 20:45.";
+    } else if (selected.length === 0) {
       selectionText.textContent = "Escriu un nom i tria fins a 2 caselles.";
     } else {
       selectionText.textContent = `${selected.map(longScore).join(" · ")} · ${money(selected.length * ENTRY_PRICE)}`;
     }
-    assignButton.disabled = !nameInput.value.trim() || selected.length === 0;
+    nameInput.disabled = entriesClosed;
+    assignButton.disabled = entriesClosed || !nameInput.value.trim() || selected.length === 0;
   }
 
   function renderRoster() {
@@ -434,6 +449,14 @@
   }
 
   async function assignEntry() {
+    if (isEntriesClosed()) {
+      selected = [];
+      renderGrid();
+      renderStats();
+      setFeedback("La porra està tancada des de les 20:45.", true);
+      return;
+    }
+
     const name = nameInput.value.trim();
     if (!name || selected.length === 0) return;
     if (state.entries.some(entry => entry.name.toLocaleLowerCase("ca") === name.toLocaleLowerCase("ca"))) {
@@ -477,6 +500,7 @@
       "📋 NORMES",
       "💶 4,50 € per casella (se'n juguen 4 €)",
       "✌️ Màxim 2 entrades per persona",
+      "🔒 La porra es tanca a les 20:45",
       "📐 Espanya = X · Argentina = Y · Resultat: X–Y",
       "🎁 Especials: hat-trick de Messi · doblet de Lamine · més de 6 gols",
       "⏱️ 25% per al marcador de la mitja part, sempre",
@@ -578,6 +602,13 @@
   grid.addEventListener("click", event => {
     const button = event.target.closest("button[data-score]");
     if (!button || button.disabled) return;
+    if (isEntriesClosed()) {
+      selected = [];
+      renderGrid();
+      renderStats();
+      setFeedback("La porra està tancada des de les 20:45.", true);
+      return;
+    }
     const key = button.dataset.score;
     if (selected.includes(key)) {
       selected = selected.filter(item => item !== key);
@@ -750,6 +781,16 @@
       render();
     }
   });
+
+  const millisecondsUntilClose = ENTRY_CLOSES_AT.getTime() - Date.now();
+  if (millisecondsUntilClose > 0) {
+    setTimeout(() => {
+      selected = [];
+      renderGrid();
+      renderStats();
+      setFeedback("🔒 La porra s'ha tancat a les 20:45.");
+    }, millisecondsUntilClose + 250);
+  }
 
   render();
   db.auth.getSession().then(({ data }) => applyAdminSession(data.session));
