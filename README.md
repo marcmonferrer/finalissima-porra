@@ -9,6 +9,8 @@ Web responsive per gestionar i compartir una porra de 25 resultats possibles.
 - Càlcul de premis i comissió del developer.
 - Seguiment de Bizums pendents i pagats.
 - Marcador, minut i fase del partit compartits en directe amb Supabase.
+- Marcatge automàtic de les caselles guanyadores de la mitja part i dels 90 minuts, sense comptar la pròrroga.
+- Confirmació manual i exclusiva de l'administrador per a les tres apostes especials.
 - Sincronització automàtica opcional amb API-Football per a la final del Mundial 2026.
 - Missatges preparats per compartir a WhatsApp.
 
