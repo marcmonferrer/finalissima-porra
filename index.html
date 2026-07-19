@@ -32,6 +32,7 @@
         <li><strong>Premis:</strong> 25% per al marcador al final de la primera part i 50% per al marcador al final dels 90 minuts reglamentaris, sempre.</li>
         <li>El <strong>25% restant</strong> es reparteix entre les apostes especials encertades. Si no se n’encerta cap, se suma al premi final, que passa al 75%.</li>
         <li><strong>La pròrroga no compta</strong> per als premis de marcador, però sí per completar les apostes especials. La tanda de penals no compta per a cap premi.</li>
+        <li>La casella guanyadora es marca <strong>automàticament</strong> a la mitja part i al final dels 90 minuts. Les apostes especials les confirma manualment l’administrador.</li>
         <li><strong>Aportació del developer:</strong> les caselles 4–0 i 0–4 serveixen per omplir el pot, però no opten a premi si resulten guanyadores.</li>
         <li>Bizum al <strong>692 84 37 43</strong> · assumpte: <strong>Nom PAGAT</strong>.</li>
       </ul>
@@ -186,7 +187,8 @@
               <legend>Apostes especials</legend>
               <label><input type="checkbox" data-special-result="messiHatTrick"> Messi marca 3 gols o més</label>
               <label><input type="checkbox" data-special-result="lamineBrace"> Lamine marca 2 gols o més</label>
-              <p>La casella de més de 6 gols s’activa automàticament.</p>
+              <label><input type="checkbox" data-special-result="moreThanSixGoals"> Més de 6 gols totals</label>
+              <p>Marca-les quan succeeixin. La pròrroga compta; la tanda de penals, no.</p>
             </fieldset>
             <button class="button button--whatsapp" type="button" data-action="match-update">📲 Compartir actualització</button>
             <button class="button" type="button" data-action="admin-logout">Tancar sessió</button>
