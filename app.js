@@ -22,8 +22,10 @@
       spain: 0,
       argentina: 0,
       halfScore: null,
+      regulationScore: null,
       messiHatTrick: false,
-      lamineBrace: false
+      lamineBrace: false,
+      moreThanSixGoals: false
     }
   };
 
@@ -137,11 +139,20 @@
   }
 
   async function loadRemoteMatch() {
-    const { data, error } = await db
+    let { data, error } = await db
       .from("partit")
-      .select("id, fase, minut, espanya, argentina, espanya_mitja, argentina_mitja, messi_hat_trick, lamine_doblet")
+      .select("id, fase, minut, espanya, argentina, espanya_mitja, argentina_mitja, espanya_90, argentina_90, messi_hat_trick, lamine_doblet, mes_de_sis_gols, provider_status")
       .eq("id", 1)
       .single();
+
+    // Manté la web operativa mentre s'aplica la migració amb els camps nous.
+    if (error) {
+      ({ data, error } = await db
+        .from("partit")
+        .select("id, fase, minut, espanya, argentina, espanya_mitja, argentina_mitja, messi_hat_trick, lamine_doblet, provider_status")
+        .eq("id", 1)
+        .single());
+    }
 
     if (error) {
       setFeedback("El marcador en directe encara no està disponible.", true);
@@ -156,8 +167,13 @@
       halfScore: data.espanya_mitja === null || data.argentina_mitja === null
         ? null
         : { spain: data.espanya_mitja, argentina: data.argentina_mitja },
+      regulationScore: data.espanya_90 == null || data.argentina_90 == null
+        ? null
+        : { spain: data.espanya_90, argentina: data.argentina_90 },
       messiHatTrick: data.messi_hat_trick === true,
-      lamineBrace: data.lamine_doblet === true
+      lamineBrace: data.lamine_doblet === true,
+      moreThanSixGoals: data.mes_de_sis_gols === true,
+      providerStatus: data.provider_status
     };
     render();
   }
@@ -217,7 +233,7 @@
     const keys = [];
     if (state.match.messiHatTrick) keys.push("4-4");
     if (state.match.lamineBrace) keys.push("3-4");
-    if (state.match.spain + state.match.argentina > 6) keys.push("4-3");
+    if (state.match.moreThanSixGoals) keys.push("4-3");
     return keys;
   }
 
@@ -227,8 +243,12 @@
       const halfKey = scoreKey(state.match.halfScore.spain, state.match.halfScore.argentina);
       if (!isSpecialBet(halfKey)) keys.push(halfKey);
     }
-    if (state.match.phase === "final") {
-      const finalKey = scoreKey(state.match.spain, state.match.argentina);
+    const finalScore = state.match.regulationScore
+      || (state.match.phase === "final"
+        ? { spain: state.match.spain, argentina: state.match.argentina }
+        : null);
+    if (finalScore) {
+      const finalKey = scoreKey(finalScore.spain, finalScore.argentina);
       if (!isSpecialBet(finalKey)) keys.push(finalKey);
     }
     return [...new Set([...keys, ...achievedSpecialKeys()])];
@@ -355,13 +375,23 @@
   }
 
   function renderScoreboard() {
-    const { phase, minute, spain, argentina, halfScore } = state.match;
+    const { phase, minute, spain, argentina, halfScore, regulationScore, providerStatus } = state.match;
+    const regulationKey = regulationScore
+      ? scoreKey(regulationScore.spain, regulationScore.argentina)
+      : scoreKey(spain, argentina);
+    const isExtraTime = ["ET", "BT"].includes(providerStatus);
+    const isPenaltyShootout = providerStatus === "P";
+    const finishedAfterExtraTime = ["AET", "PEN"].includes(providerStatus);
     const phases = {
       pre: ["PREPARTIT", "—", "El partit encara no ha començat"],
       first: ["EN DIRECTE", `${minute}′`, "Primera part"],
       half: ["MITJA PART", "45′", winnerNote(scoreKey(spain, argentina), "Guanyador provisional")],
-      second: ["EN DIRECTE", `${minute}′`, halfScore ? `Mitja part: ${halfScore.spain}–${halfScore.argentina}` : "Segona part"],
-      final: ["FINAL", "90′", winnerNote(scoreKey(spain, argentina), "Guanyador final")]
+      second: isPenaltyShootout
+        ? ["PENALS", "—", winnerNote(regulationKey, "Guanyador dels 90 minuts")]
+        : isExtraTime
+          ? ["PRÒRROGA", `${minute}′`, winnerNote(regulationKey, "Guanyador dels 90 minuts")]
+          : ["EN DIRECTE", `${minute}′`, halfScore ? `Mitja part: ${halfScore.spain}–${halfScore.argentina}` : "Segona part"],
+      final: ["FINAL", finishedAfterExtraTime ? "120′" : "90′", winnerNote(regulationKey, "Guanyador dels 90 minuts")]
     };
     const [label, clock, note] = phases[phase];
     document.querySelector("[data-live-label]").textContent = label;
@@ -479,12 +509,16 @@
   }
 
   function matchUpdateMessage() {
-    const { phase, minute, spain, argentina, halfScore } = state.match;
+    const { phase, minute, spain, argentina, halfScore, regulationScore, providerStatus } = state.match;
     const phaseLabels = {
       pre: "PREPARTIT",
       first: `PRIMERA PART · MINUT ${minute}`,
       half: "MITJA PART",
-      second: `SEGONA PART · MINUT ${minute}`,
+      second: providerStatus === "P"
+        ? "TANDA DE PENALS"
+        : ["ET", "BT"].includes(providerStatus)
+          ? `PRÒRROGA · MINUT ${minute}`
+          : `SEGONA PART · MINUT ${minute}`,
       final: "FINAL"
     };
     const key = scoreKey(spain, argentina);
@@ -511,6 +545,18 @@
           : isSpecialBet(halfKey)
             ? `⏱️ Mitja part: ${scoreResult(halfKey)} · marcador substituït per una aposta especial.`
             : `⏱️ Mitja part: ${scoreResult(halfKey)} · casella sense propietari.`
+      );
+    }
+
+    if (regulationScore) {
+      const regulationKey = scoreKey(regulationScore.spain, regulationScore.argentina);
+      const regulationOwner = isSpecialBet(regulationKey) ? null : ownerOf(regulationKey);
+      lines.push(
+        regulationOwner
+          ? `🏁 90 minuts: ${scoreResult(regulationKey)} · ${regulationOwner.name}.`
+          : isSpecialBet(regulationKey)
+            ? `🏁 90 minuts: ${scoreResult(regulationKey)} · marcador substituït per una aposta especial.`
+            : `🏁 90 minuts: ${scoreResult(regulationKey)} · casella sense propietari.`
       );
     }
 
@@ -607,15 +653,21 @@
     state.match.phase = phaseSelect.value;
     if (state.match.phase === "pre" || state.match.phase === "first") {
       state.match.halfScore = null;
+      state.match.regulationScore = null;
     }
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
+    }
+    if (state.match.phase === "final") {
+      state.match.regulationScore = { spain: state.match.spain, argentina: state.match.argentina };
     }
     render();
     const patch = {
       fase: state.match.phase,
       espanya_mitja: state.match.halfScore?.spain ?? null,
-      argentina_mitja: state.match.halfScore?.argentina ?? null
+      argentina_mitja: state.match.halfScore?.argentina ?? null,
+      espanya_90: state.match.regulationScore?.spain ?? null,
+      argentina_90: state.match.regulationScore?.argentina ?? null
     };
     if (!await updateRemoteMatch(patch)) {
       state.match = previous;
@@ -640,7 +692,13 @@
     const field = input.dataset.specialResult;
     const columns = {
       messiHatTrick: "messi_hat_trick",
-      lamineBrace: "lamine_doblet"
+      lamineBrace: "lamine_doblet",
+      moreThanSixGoals: "mes_de_sis_gols"
+    };
+    const specialKeys = {
+      messiHatTrick: "4-4",
+      lamineBrace: "3-4",
+      moreThanSixGoals: "4-3"
     };
     const previous = state.match[field];
     state.match[field] = input.checked;
@@ -650,7 +708,7 @@
       render();
       return;
     }
-    setFeedback(`${longScore(field === "messiHatTrick" ? "4-4" : "3-4")}: ${state.match[field] ? "completa" : "pendent"}.`);
+    setFeedback(`${longScore(specialKeys[field])}: ${state.match[field] ? "completa" : "pendent"}.`);
   });
 
   adminControls.addEventListener("click", async event => {
@@ -661,9 +719,15 @@
     const previousHalfScore = state.match.halfScore
       ? { ...state.match.halfScore }
       : null;
+    const previousRegulationScore = state.match.regulationScore
+      ? { ...state.match.regulationScore }
+      : null;
     state.match[team] = Math.max(0, state.match[team] + Number(change));
     if (state.match.phase === "half") {
       state.match.halfScore = { spain: state.match.spain, argentina: state.match.argentina };
+    }
+    if (state.match.phase === "final") {
+      state.match.regulationScore = { spain: state.match.spain, argentina: state.match.argentina };
     }
     render();
     const column = team === "spain" ? "espanya" : "argentina";
@@ -672,12 +736,17 @@
       patch.espanya_mitja = state.match.halfScore.spain;
       patch.argentina_mitja = state.match.halfScore.argentina;
     }
+    if (state.match.phase === "final") {
+      patch.espanya_90 = state.match.regulationScore.spain;
+      patch.argentina_90 = state.match.regulationScore.argentina;
+    }
     button.disabled = true;
     const updated = await updateRemoteMatch(patch);
     button.disabled = false;
     if (!updated) {
       state.match[team] = previous;
       state.match.halfScore = previousHalfScore;
+      state.match.regulationScore = previousRegulationScore;
       render();
     }
   });
