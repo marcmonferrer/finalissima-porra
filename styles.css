@@ -323,7 +323,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .payment-status.is-paid { color: var(--success); }
 .remove-button { background: transparent; border: 0; color: var(--danger); font-weight: 700; padding: 6px; }
 
-footer { color: var(--muted); font-size: .78rem; padding: 0 20px 36px; text-align: center; }
+.site-footer {
+  color: var(--muted);
+  font-size: .78rem;
+  padding: 0 20px 36px;
+  text-align: center;
+}
+.site-footer__credit { margin: 0 auto 14px; }
+.site-footer a { color: var(--navy-700); font-weight: 800; }
+.developer-cta {
+  align-items: center;
+  background: var(--navy-950);
+  border: 1px solid rgba(117, 191, 255, .2);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  color: white;
+  display: flex;
+  gap: 10px 18px;
+  justify-content: center;
+  margin: 0 auto;
+  max-width: 900px;
+  padding: 18px 22px;
+}
+.developer-cta strong { color: var(--gold); font-size: .95rem; }
+.developer-cta span { color: #dbe8f7; font-size: .82rem; }
+.developer-cta a {
+  background: var(--red);
+  border-radius: 9px;
+  color: white;
+  padding: 8px 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.developer-cta a:hover { background: var(--red-dark); }
 .visually-hidden { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
 
 @media (max-width: 820px) {
@@ -336,6 +368,8 @@ footer { color: var(--muted); font-size: .78rem; padding: 0 20px 36px; text-alig
 }
 
 @media (max-width: 560px) {
+  .developer-cta { align-items: stretch; flex-direction: column; padding: 17px; }
+  .developer-cta a { text-align: center; }
   .hero { padding: 42px 16px 76px; }
   .page-shell { padding-inline: 12px; }
   .rules, .game, .roster { padding: 18px; }
