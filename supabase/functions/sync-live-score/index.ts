@@ -110,6 +110,9 @@ Deno.serve(async request => {
     const half = live.score.halftime.home === null || live.score.halftime.away === null
       ? null
       : mapScore(live, "halftime");
+    const regulation = live.score.fulltime.home === null || live.score.fulltime.away === null
+      ? null
+      : mapScore(live, "fulltime");
     const status = live.fixture.status.short;
     const phase = mapPhase(status);
     const patch = {
@@ -119,6 +122,8 @@ Deno.serve(async request => {
       argentina: score.argentina ?? 0,
       espanya_mitja: half?.spain ?? null,
       argentina_mitja: half?.argentina ?? null,
+      espanya_90: regulation?.spain ?? null,
+      argentina_90: regulation?.argentina ?? null,
       provider_fixture_id: fixtureId,
       provider_status: status,
       last_synced_at: new Date().toISOString(),
@@ -127,7 +132,7 @@ Deno.serve(async request => {
 
     const { error: updateError } = await db.from("partit").update(patch).eq("id", 1);
     if (updateError) throw updateError;
-    return Response.json({ ok: true, fixtureId, status, score });
+    return Response.json({ ok: true, fixtureId, status, score, half, regulation });
   } catch (error) {
     console.error(error);
     const message = error instanceof Error ? error.message : String(error);
