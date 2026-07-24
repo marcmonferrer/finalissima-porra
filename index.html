@@ -4,40 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#091a33">
-  <meta name="description" content="Porra interactiva de la final España–Argentina">
-  <title>Finalíssima · España vs Argentina</title>
+  <meta name="description" content="Demo interactiva d'una porra digital Espanya–Argentina desenvolupada amb IA">
+  <title>Finalíssima · Demo interactiva</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="hero">
-    <div class="hero__eyebrow">FINALÍSSIMA</div>
+    <div class="hero__eyebrow">FINALÍSSIMA · DEMO INTERACTIVA</div>
     <h1>ESPAÑA 🇪🇸 <span>vs</span> ARGENTINA 🇦🇷</h1>
-    <p>Això passa molt poques vegades a la vida! Per fer la FINALÍSSIMA encara més interessant, he creat una porra interactiva. És un dels meus primers projectes amb IA, però crec que ha quedat força resolutiu!!</p>
+    <p>Prototip funcional d’una porra digital creat per Marc Monferrer amb l’ajuda de la IA. Pots reservar caselles, simular pagaments, modificar el marcador i comprovar com es marquen automàticament els guanyadors.</p>
   </header>
 
   <main class="page-shell">
     <section class="rules panel" aria-labelledby="rules-title">
       <div class="section-heading">
-        <span class="section-heading__icon">📋</span>
+        <span class="section-heading__icon">🧪</span>
         <div>
-          <p>Com funciona</p>
-          <h2 id="rules-title">Normes de la porra</h2>
+          <p>Prova totes les funcionalitats</p>
+          <h2 id="rules-title">Mode demostració</h2>
         </div>
       </div>
       <ul>
-        <li><strong>4,50 €</strong> per casella: 4 € es juguen i 0,50 € són per al developer.</li>
-        <li>Màxim <strong>2 entrades</strong> per persona.</li>
-        <li>La porra es tanca a les <strong>20:45</strong>.</li>
+        <li>La demo està <strong>sempre oberta</strong> i es pot reiniciar des dels controls.</li>
+        <li>Pots seleccionar un màxim de <strong>2 caselles</strong> per participant.</li>
+        <li>Els imports de <strong>4,50 €</strong>, el pot i els pagaments són completament simulats.</li>
         <li>Espanya = <strong>X</strong> · Argentina = <strong>Y</strong> · Resultat: <strong>X–Y</strong>.</li>
         <li><strong>Apostes especials:</strong> Messi marca 3 gols o més, Lamine en marca 2 o més, o hi ha més de 6 gols totals.</li>
-        <li><strong>Premis:</strong> 25% per al marcador al final de la primera part i 50% per al marcador al final dels 90 minuts reglamentaris, sempre.</li>
-        <li>El <strong>25% restant</strong> es reparteix entre les apostes especials encertades. Si no se n’encerta cap, se suma al premi final, que passa al 75%.</li>
-        <li><strong>La pròrroga no compta</strong> per als premis de marcador, però sí per completar les apostes especials. La tanda de penals no compta per a cap premi.</li>
-        <li>La casella guanyadora es marca <strong>automàticament</strong> a la mitja part i al final dels 90 minuts. Les apostes especials les confirma manualment l’administrador.</li>
-        <li><strong>Aportació del developer:</strong> les caselles 4–0 i 0–4 serveixen per omplir el pot, però no opten a premi si resulten guanyadores.</li>
-        <li>Bizum al <strong>692 84 37 43</strong> · assumpte: <strong>Nom PAGAT</strong>.</li>
+        <li><strong>Premis:</strong> 25% per al marcador al final de la primera part, 50% per al marcador dels 90 minuts i 25% per a les apostes especials.</li>
+        <li>La casella guanyadora es marca <strong>automàticament</strong> quan selecciones “Mitja part” o “Final” als controls.</li>
+        <li>Les dades es desen només al navegador d’aquest dispositiu. <strong>No hi ha pagaments ni dades personals reals.</strong></li>
       </ul>
-      <p class="referee">Si l’àrbitre la lia, no me’n faig responsable 😂</p>
+      <p class="referee">Toca, prova i trenca coses: és exactament per això que existeix la demo 😄</p>
     </section>
 
     <div class="content-layout">
@@ -50,7 +47,7 @@
               <h2 id="board-title">Resultats i apostes especials</h2>
             </div>
           </div>
-          <span class="availability" data-available>25 lliures</span>
+          <span class="availability" data-available>25 lliures · DEMO OBERTA</span>
         </div>
 
         <div class="stats" aria-live="polite">
@@ -59,7 +56,7 @@
             <strong data-stat="occupied">0 / 25</strong>
           </div>
           <div class="stat stat--gold">
-            <span>Final garantit · 50%</span>
+            <span>Final · 50%</span>
             <strong data-stat="final-prize">0,00 €</strong>
           </div>
           <div class="stat stat--sky">
@@ -67,7 +64,7 @@
             <strong data-stat="half-prize">0,00 €</strong>
           </div>
           <div class="stat stat--special">
-            <span>Especials / bonus final · 25%</span>
+            <span>Especials · 25%</span>
             <strong data-stat="special-prize">0,00 €</strong>
           </div>
         </div>
@@ -75,7 +72,7 @@
         <div class="entry-form">
           <label for="participant-name">Nom del participant</label>
           <div class="entry-form__row">
-            <input id="participant-name" type="text" maxlength="30" autocomplete="name" placeholder="Ex. Marc">
+            <input id="participant-name" type="text" maxlength="30" autocomplete="off" placeholder="Ex. Marc">
             <button class="button button--primary" type="button" data-action="assign" disabled>Assignar caselles</button>
           </div>
           <p class="selection" data-selection>Escriu un nom i tria fins a 2 caselles.</p>
@@ -113,14 +110,14 @@
             <div class="team"><span class="team__flag">🇦🇷</span><span>Argentina</span></div>
             <strong data-score="argentina">0</strong>
           </div>
-          <div class="scoreboard__footer" data-match-note>El partit encara no ha començat</div>
+          <div class="scoreboard__footer" data-match-note>Demo preparada per començar</div>
         </section>
 
         <section class="money panel" aria-labelledby="money-title">
           <div class="section-heading">
             <span class="section-heading__icon">💰</span>
             <div>
-              <p>Seguiment</p>
+              <p>Seguiment simulat</p>
               <h2 id="money-title">Pagaments</h2>
             </div>
           </div>
@@ -129,38 +126,18 @@
           <div class="money__row"><span>Developer</span><strong data-money="developer">0,00 €</strong></div>
         </section>
 
-        <section class="admin-login panel" data-admin-login>
-  <h3>🔐 Accés administrador</h3>
+        <section class="admin-login panel" data-admin-login hidden>
+          <h3>🔐 Accés administrador</h3>
+          <label for="admin-email">Correu electrònic</label>
+          <input id="admin-email" type="email" autocomplete="username">
+          <label for="admin-password">Contrasenya</label>
+          <input id="admin-password" type="password" autocomplete="current-password">
+          <button class="button button--primary" type="button" data-action="admin-login">Iniciar sessió</button>
+          <p class="admin-login__feedback" data-auth-feedback></p>
+        </section>
 
-  <label for="admin-email">Correu electrònic</label>
-  <input
-    id="admin-email"
-    type="email"
-    autocomplete="username"
-    placeholder="Correu de l’administrador"
-  >
-
-  <label for="admin-password">Contrasenya</label>
-  <input
-    id="admin-password"
-    type="password"
-    autocomplete="current-password"
-    placeholder="Contrasenya"
-  >
-
-  <button
-    class="button button--primary"
-    type="button"
-    data-action="admin-login"
-  >
-    Iniciar sessió
-  </button>
-
-  <p class="admin-login__feedback" data-auth-feedback></p>
-</section>
-
-<details class="admin panel" data-admin-controls hidden>
-          <summary>⚙️ Controls de l’organitzador</summary>
+        <details class="admin panel" data-admin-controls open>
+          <summary>⚙️ Controls de demostració</summary>
           <div class="admin__body">
             <label for="match-phase">Estat del partit</label>
             <select id="match-phase">
@@ -189,11 +166,10 @@
               <label><input type="checkbox" data-special-result="messiHatTrick"> Messi marca 3 gols o més</label>
               <label><input type="checkbox" data-special-result="lamineBrace"> Lamine marca 2 gols o més</label>
               <label><input type="checkbox" data-special-result="moreThanSixGoals"> Més de 6 gols totals</label>
-              <p>Marca-les quan succeeixin. La pròrroga compta; la tanda de penals, no.</p>
             </fieldset>
             <button class="button button--whatsapp" type="button" data-action="match-update">📲 Compartir actualització</button>
-            <button class="button" type="button" data-action="admin-logout">Tancar sessió</button>
-            <p class="admin__hint">Sessió protegida amb Supabase. El marcador s’actualitza en directe per a tothom.</p>
+            <button class="button" type="button" data-action="admin-logout">Reiniciar demo</button>
+            <p class="admin__hint">Els canvis només afecten aquesta demo local. Selecciona “Mitja part” o “Final” per marcar automàticament la casella guanyadora.</p>
           </div>
         </details>
       </aside>
@@ -204,7 +180,7 @@
         <div class="section-heading__group">
           <span class="section-heading__icon">👥</span>
           <div>
-            <p>Control de la porra</p>
+            <p>Control de la demo</p>
             <h2 id="roster-title">Participants</h2>
           </div>
         </div>
@@ -215,14 +191,14 @@
   </main>
 
   <footer class="site-footer">
-    <p class="site-footer__credit">Designed and developed by <a href="https://www.linkedin.com/in/marcmonferrer?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_android" target="_blank" rel="noopener noreferrer">Marc Monferrer</a> and my CoPilot JARVIS</p>
+    <p class="site-footer__credit">Designed and developed by <a href="https://www.linkedin.com/in/marcmonferrer" target="_blank" rel="noopener noreferrer">Marc Monferrer</a> with AI CoPilot JARVIS</p>
     <div class="developer-cta">
-      <strong>Vols una porra personalitzada?</strong>
-      <span>Contacta amb el developer per crear-ne una per a qualsevol partit de la temporada.</span>
-      <a href="https://www.linkedin.com/in/marcmonferrer?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_android" target="_blank" rel="noopener noreferrer">Parlem-ne →</a>
+      <strong>Necessites una experiència digital personalitzada?</strong>
+      <span>Prototips, automatitzacions i solucions amb intel·ligència artificial.</span>
+      <a href="https://www.linkedin.com/in/marcmonferrer" target="_blank" rel="noopener noreferrer">Parlem-ne →</a>
     </div>
   </footer>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+
+  <script src="demo.js"></script>
 </body>
 </html>
